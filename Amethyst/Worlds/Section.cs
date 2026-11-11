@@ -10,7 +10,7 @@ internal sealed class Section
     {
         get
         {
-            var index = NumericUtility.AsIndex(x, y, z) * 2;
+            var index = AsIndex(x, y, z);
 
             var type = blocks[index] >> 4 | blocks[index + 1] << 4;
             var metadata = blocks[index] & 0x0F;
@@ -19,7 +19,7 @@ internal sealed class Section
         }
         set
         {
-            var index = NumericUtility.AsIndex(x, y, z) * 2;
+            var index = AsIndex(x, y, z);
             var type = value.Type;
 
             blocks[index] = (byte) (type << 4 | value.Metadata);
@@ -30,5 +30,10 @@ internal sealed class Section
     public ReadOnlySpan<byte> Build()
     {
         return blocks;
+    }
+
+    private static int AsIndex(int x, int y, int z)
+    {
+        return ((y & 0x0F) << 8 | (z & 0x0F) << 4 | x & 0x0F) * 2;
     }
 }

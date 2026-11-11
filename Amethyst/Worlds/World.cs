@@ -1,5 +1,4 @@
-﻿using Amethyst.Abstractions.Entities;
-using Amethyst.Abstractions.Entities.Player;
+﻿using Amethyst.Abstractions.Entities.Player;
 using System.Collections.Concurrent;
 using Amethyst.Abstractions.Worlds;
 
@@ -19,42 +18,18 @@ internal sealed class World(string name, WorldType type, Dimension dimension, Di
 
     public IReadOnlyDictionary<string, IPlayer> Players => players;
 
-    public Block this[Position position]
-    {
-        get => this[(int) position.X, (int) position.Y, (int) position.Z];
-        set => this[(int) position.X, (int) position.Y, (int) position.Z] = value;
-    }
-
-    private readonly ConcurrentDictionary<string, IPlayer> players = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<long, IChunk> chunks = [];
-
-    private readonly Dictionary<long, IChunk> pending = [];
-    private readonly Lock gate = new();
-
-    /// <returns>
-    /// False if a player with the same username, ignoring case, is already in this world.
-    /// </returns>
-    public bool TryAdd(IPlayer player)
-    {
-        return players.TryAdd(player.Username, player);
-    }
-
-    public void Remove(IPlayer player)
-    {
-        _ = players.TryRemove(new KeyValuePair<string, IPlayer>(player.Username, player));
-    }
-
     public Block this[int x, int y, int z]
     {
         get => this[x.ToChunk(), z.ToChunk()][x, y, z];
         set => this[x.ToChunk(), z.ToChunk()][x, y, z] = value;
     }
 
+    // This probably should be a method instead.
     public IChunk this[int x, int z]
     {
         get
         {
-            var key = NumericUtility.Encode(x, z);
+            var key = (long) z << 32 | (uint) x;
 
             if (chunks.TryGetValue(key, out var chunk))
             {
@@ -86,5 +61,21 @@ internal sealed class World(string name, WorldType type, Dimension dimension, Di
                 return chunk;
             }
         }
+    }
+
+    private readonly ConcurrentDictionary<string, IPlayer> players = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<long, IChunk> chunks = [];
+
+    private readonly Dictionary<long, IChunk> pending = [];
+    private readonly Lock gate = new();
+
+    public bool TryAdd(IPlayer player)
+    {
+        return players.TryAdd(player.Username, player);
+    }
+
+    public void Remove(IPlayer player)
+    {
+        players.TryRemove(new KeyValuePair<string, IPlayer>(player.Username, player));
     }
 }

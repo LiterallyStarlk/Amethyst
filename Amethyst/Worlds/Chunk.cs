@@ -18,8 +18,8 @@ internal sealed class Chunk(int horizontal, int vertical) : IChunk
 
     public Biome this[int x, int z]
     {
-        get => biomes[NumericUtility.AsIndex(x, z)];
-        set => biomes[NumericUtility.AsIndex(x, z)] = value;
+        get => biomes[AsIndex(x, z)];
+        set => biomes[AsIndex(x, z)] = value;
     }
 
     public SingleChunkPacket Build()
@@ -54,5 +54,10 @@ internal sealed class Chunk(int horizontal, int vertical) : IChunk
         offset += 256;
 
         return new SingleChunkPacket(horizontal, vertical, result[..offset].ToArray(), bitmask);
+    }
+
+    private static int AsIndex(int x, int z)
+    {
+        return (z & 0x0F) * 16 + (x & 0x0F);
     }
 }
