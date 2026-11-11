@@ -27,9 +27,8 @@ internal sealed class Section
         }
     }
 
-    public byte[] Build()
+    public ReadOnlySpan<byte> Build()
     {
-        // Lighting is not implemented "yet".
         return blocks;
     }
 }

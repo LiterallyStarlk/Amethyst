@@ -1,5 +1,7 @@
 ﻿using Amethyst.Abstractions.Packets.Play;
 using Amethyst.Abstractions.Worlds;
+using System.Buffers;
+using System.Runtime.InteropServices;
 
 namespace Amethyst.Worlds;
 
@@ -27,38 +29,120 @@ internal sealed class Chunk(int horizontal, int vertical) : IChunk
 
     public SingleChunkPacket Build()
     {
-        var parts = new byte[sections.Length][];
-        var count = 0;
-        var bitmask = 0;
+        Span<byte> result = new byte[((8192 + 2048 + 2048) * 16) + 256];
 
-        // Sections can have gaps between them, the bitmask tells the client which heights are present.
-        for (var index = 0; index < sections.Length; index++)
-        {
-            if (sections[index] is not { } section)
-            {
-                continue;
-            }
-
-            parts[count++] = section.Build();
-            bitmask |= 1 << index;
-        }
-
-        // Use array pools for this.
-        var final = Enumerable.Repeat<byte>(255, (8192 + 2048 + 2048) * count + 256).ToArray();
+        // Lights are not "implemented" yet...
+        result.Fill(255);
 
         var offset = 0;
+        var parts = 0;
 
-        foreach (var part in parts.AsSpan(0, count))
+        ushort bitmask = 0;
+
+        for (int index = 0; index < sections.Length; index++)
         {
-            part.CopyTo(final, offset);
-            offset += 8192;
+            if (sections[index] is Section section)
+            {
+                section.Build().CopyTo(result[offset..]);
+
+                offset += 8192;
+                parts++;
+
+                bitmask |= (ushort) (1 << index);
+            }
         }
 
-        for (var index = 0; index < biomes.Length; index++)
-        {
-            final[final.Length - biomes.Length + index] = (byte) biomes[index];
-        }
+        offset += 4096 * parts;
 
-        return new SingleChunkPacket(horizontal, vertical, final, (ushort) bitmask);
+        MemoryMarshal.AsBytes(biomes).CopyTo(result[offset..]);
+
+        offset += 256;
+
+        return new SingleChunkPacket(horizontal, vertical, result[..offset].ToArray(), bitmask);
+
+        //var result = new byte[((8192 + 2048 + 2048) * 16) + 256];
+        //var offset = 0;
+
+        //ushort bitmask = 0;
+
+        //// Lights are not "implemented" yet...
+        //Array.Fill<byte>(result, 255);
+
+        //for (int index = 0; index < sections.Length; index++)
+        //{
+        //    if (sections[index] is Section section)
+        //    {
+        //        section.Build().CopyTo(result, offset);
+
+        //        offset += 8192 + 2048 + 2048;
+        //        bitmask |= (ushort) (1 << index);
+        //    }
+        //}
+
+        //MemoryMarshal.AsBytes(biomes).ToArray().CopyTo(result, offset);
+
+        //return new SingleChunkPacket(horizontal, vertical, result, bitmask);
+
+        //var result = new List<byte>(8192 + 2048 + 2048 + 256);
+        //var parts = 0;
+
+        //ushort bitmask = 0;
+
+        //var lights = new byte[4096];
+
+        //Array.Fill<byte>(lights, 255);
+
+        //for (int index = 0; index < sections.Length; index++)
+        //{
+        //    if (sections[index] is Section section)
+        //    {
+        //        result.AddRange(section.Build());
+        //        result.AddRange(lights);
+
+        //        parts++;
+
+        //        bitmask |= (ushort) (1 << index);
+        //    }
+        //}
+
+        //result.AddRange(MemoryMarshal.AsBytes(biomes).ToArray());
+
+        //return new SingleChunkPacket(horizontal, vertical, [.. result], bitmask);
+
+        //ushort bitmask = 0;
+        //
+        //var parts = 0;
+
+        //for (int index = 0; index < sections.Length; index++)
+        //{
+        //    if (sections[index] is null)
+        //    {
+        //        continue;
+        //    }
+
+        //    bitmask |= (ushort) (1 << index);
+        //    parts++;
+        //}
+
+        //var result = new byte[((8192 + 2048 + 2048) * parts) + 256];
+        //var offset = 0;
+
+        //for (int index = 0; index < sections.Length; index++)
+        //{
+        //    if (sections[index] is Section section)
+        //    {
+        //        Array.Copy(section.Build(), 0, result, offset, 8192);
+        //        offset += 8192;
+        //    }
+        //}
+
+        //// Add lights.
+        //Array.Fill<byte>(result, 255, offset, 4096 * parts);
+
+        //offset += 4096 * parts;
+
+        //Array.Copy(MemoryMarshal.AsBytes(biomes).ToArray(), 0, result, offset, biomes.Length);
+
+        //return new SingleChunkPacket(horizontal, vertical, result, bitmask);
     }
 }
